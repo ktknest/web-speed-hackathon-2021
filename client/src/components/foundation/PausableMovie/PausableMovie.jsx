@@ -1,6 +1,4 @@
 import classNames from 'classnames';
-import { Animator, Decoder } from 'gifler';
-import { GifReader } from 'omggif';
 import React from 'react';
 
 import { useFetch } from '../../../hooks/use_fetch';
@@ -21,38 +19,27 @@ const PausableMovie = ({ src }) => {
   const { data, isLoading } = useFetch(src, fetchBinary);
 
   /** @type {React.RefObject<import('gifler').Animator>} */
-  const animatorRef = React.useRef(null);
-  /** @type {React.RefCallback<HTMLImageElement>} */
-  const canvasCallbackRef = React.useCallback(
-    (el) => {
-      animatorRef.current?.stop();
-
-      if (el === null || data === null) {
-        return;
-      }
-
-      // GIF を解析する
-      const reader = new GifReader(new Uint8Array(data));
-      const frames = Decoder.decodeFramesSync(reader);
-      const animator = new Animator(reader, frames);
-      animator.animateInCanvas(el);
-
-      animatorRef.current = animator;
-    },
-    [data],
-  );
+  const movieRef = React.useRef(null);
 
   const [isPlaying, setIsPlaying] = React.useState(true);
   const handleClick = React.useCallback(() => {
     setIsPlaying((isPlaying) => {
       if (isPlaying) {
-        animatorRef.current?.stop();
+        movieRef.current?.pause();
       } else {
-        animatorRef.current?.start();
+        movieRef.current?.play();
       }
       return !isPlaying;
     });
   }, []);
+
+  const handleLoad = React.useCallback(() => {
+    if (isPlaying && movieRef.current?.paused) {
+      movieRef.current?.play().catch(() => {
+        setIsPlaying(false);
+      });
+    }
+  }, [src]);
 
   if (isLoading || data === null) {
     return null;
@@ -61,7 +48,7 @@ const PausableMovie = ({ src }) => {
   return (
     <AspectRatioBox aspectHeight={1} aspectWidth={1}>
       <button className="group relative block w-full h-full" type="button" onClick={handleClick}>
-        <canvas ref={canvasCallbackRef} className="w-full" />
+        <video src={src} className="w-full" autoPlay loop ref={movieRef} onLoadedData={handleLoad} />
         <div
           className={classNames(
             'left-1/2 top-1/2 absolute flex items-center justify-center w-16 h-16 text-white text-3xl bg-black bg-opacity-50 rounded-full transform -translate-x-1/2 -translate-y-1/2',
